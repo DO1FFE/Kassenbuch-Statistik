@@ -46,10 +46,7 @@ def upload_file_form():
     if 'authenticated' not in session:
         return redirect(url_for('password_form'))
 
-    html_table_daily = ""
-    html_table_monthly = ""
     current_year = datetime.now().year
-    filename = f"{current_year}-Kassenbuch-Statistik.xlsx"
     csv_file_path = f'Statistiken/{current_year}-statistik.csv'
 
     if request.method == 'POST':
@@ -84,12 +81,18 @@ def upload_file_form():
         combined_data = combined_data[~combined_data.index.duplicated(keep='last')]
         combined_data.reset_index().to_csv(csv_file_path, index=False, date_format='%d.%m.%Y')
 
-        html_table_daily = combined_data.to_html(classes='table table-striped')
-
-        is_date = pd.to_datetime(combined_data.index, errors='coerce').notna()
-        combined_data.loc[is_date, 'Monat'] = pd.to_datetime(combined_data[is_date].index).strftime('%B')
-        monthly_data = combined_data[is_date].groupby('Monat').sum()
+    if os.path.exists(csv_file_path):
+        existing_data = pd.read_csv(csv_file_path)
+        existing_data['Datum'] = pd.to_datetime(existing_data['Datum'], format='%d.%m.%Y')
+        existing_data.set_index('Datum', inplace=True)
+        html_table_daily = existing_data.to_html(classes='table table-striped')
+        is_date = pd.to_datetime(existing_data.index, errors='coerce').notna()
+        existing_data.loc[is_date, 'Monat'] = pd.to_datetime(existing_data[is_date].index).strftime('%B')
+        monthly_data = existing_data[is_date].groupby('Monat').sum()
         html_table_monthly = monthly_data.to_html(classes='table table-striped')
+    else:
+        html_table_daily = "<p>Keine täglichen Daten vorhanden.</p>"
+        html_table_monthly = "<p>Keine monatlichen Daten vorhanden.</p>"
 
     header = render_header()
     footer = render_footer()
@@ -193,7 +196,7 @@ def clear_statistics():
           </form>
           <br>
           <a href="/">Zurück zur Hauptseite</a>
-          ''' + render_footer() + '''
+          ''' + footer + '''
        </body>
     </html>
     ''')
