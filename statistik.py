@@ -39,8 +39,6 @@ def upload_file():
 
         # Konvertieren der 'Datum'-Spalte zu datetime und Fehlerbehandlung
         df['Datum'] = pd.to_datetime(df['Datum'], errors='coerce')
-
-        # Weiterhin sicherstellen, dass nur gültige Datumsdaten berücksichtigt werden
         df = df.dropna(subset=['Datum'])
 
         # Extrahieren der ersten zwei Buchstaben der Tickettypen
@@ -50,6 +48,11 @@ def upload_file():
 
         # Gruppierung der Daten
         grouped_data = df.groupby([df['Datum'].dt.strftime('%d.%m.%Y'), 'Tickettyp']).size().unstack(fill_value=0)
+
+        # Hinzufügen fehlender Tickettypen, falls sie nicht vorhanden sind
+        for ticket_type in ['TT', 'MT', 'JT', 'V', 'R']:
+            if ticket_type not in grouped_data:
+                grouped_data[ticket_type] = 0
 
         # Anordnung der Spalten in der gewünschten Reihenfolge
         desired_order = ['TT', 'MT', 'JT', 'V', 'R']
