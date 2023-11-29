@@ -85,8 +85,9 @@ def upload_file_form():
         html_table_daily = combined_data.to_html(classes='table table-striped')
 
         # Monatliche Statistik erstellen
-        combined_data['Monat'] = pd.to_datetime(combined_data.index).strftime('%B')
-        monthly_data = combined_data.groupby('Monat').sum()
+        is_date = pd.to_datetime(combined_data.index, errors='coerce').notna()
+        combined_data.loc[is_date, 'Monat'] = pd.to_datetime(combined_data[is_date].index).strftime('%B')
+        monthly_data = combined_data[is_date].groupby('Monat').sum()
         html_table_monthly = monthly_data.to_html(classes='table table-striped')
 
     header = render_header()
