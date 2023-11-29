@@ -35,8 +35,9 @@ def upload_file():
         # Einlesen der Excel-Datei ab Zeile 4
         df = pd.read_excel(f, skiprows=3)
 
-        # Datumskonvertierung
-        df['Datum'] = pd.to_datetime(df['Datum']).dt.strftime('%d.%m.%Y')
+        # Datumskonvertierung der ersten Spalte
+        df.iloc[:, 0] = pd.to_datetime(df.iloc[:, 0]).dt.strftime('%d.%m.%Y')
+        df.rename(columns={df.columns[0]: 'Datum'}, inplace=True)
 
         df['Tickettyp'] = df['Quittung Text'].str[:2]
         ticket_types = ['TT', 'MT', 'JT', 'V', 'R']
