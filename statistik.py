@@ -74,17 +74,18 @@ def upload_file_form():
         grouped_data.loc['Gesamt'] = grouped_data.sum()
 
         if os.path.exists(csv_file_path):
-            existing_data = pd.read_csv(csv_file_path, index_col='Datum')
+            existing_data = pd.read_csv(csv_file_path)
+            existing_data['Datum'] = pd.to_datetime(existing_data['Datum'], format='%d.%m.%Y')
+            existing_data.set_index('Datum', inplace=True)
         else:
             existing_data = pd.DataFrame()
 
         combined_data = pd.concat([existing_data, grouped_data])
         combined_data = combined_data[~combined_data.index.duplicated(keep='last')]
-        combined_data.to_csv(csv_file_path)
+        combined_data.reset_index().to_csv(csv_file_path, index=False, date_format='%d.%m.%Y')
 
         html_table_daily = combined_data.to_html(classes='table table-striped')
 
-        # Monatliche Statistik erstellen
         is_date = pd.to_datetime(combined_data.index, errors='coerce').notna()
         combined_data.loc[is_date, 'Monat'] = pd.to_datetime(combined_data[is_date].index).strftime('%B')
         monthly_data = combined_data[is_date].groupby('Monat').sum()
