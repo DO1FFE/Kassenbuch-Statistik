@@ -72,7 +72,7 @@ def upload_file_form():
 
         if os.path.exists(csv_file_path):
             existing_data = pd.read_csv(csv_file_path)
-            existing_data['Datum'] = pd.to_datetime(existing_data['Datum'], format='%d.%m.%Y')
+            existing_data['Datum'] = pd.to_datetime(existing_data['Datum'], errors='coerce').dt.strftime('%d.%m.%Y')
             existing_data.set_index('Datum', inplace=True)
         else:
             existing_data = pd.DataFrame()
@@ -81,11 +81,13 @@ def upload_file_form():
         combined_data = combined_data[~combined_data.index.duplicated(keep='last')]
         combined_data.reset_index().to_csv(csv_file_path, index=False, date_format='%d.%m.%Y')
 
+    # Tägliche und monatliche Statistik anzeigen
     if os.path.exists(csv_file_path):
         existing_data = pd.read_csv(csv_file_path)
-        existing_data['Datum'] = pd.to_datetime(existing_data['Datum'], format='%d.%m.%Y')
+        existing_data['Datum'] = pd.to_datetime(existing_data['Datum'], errors='coerce').dt.strftime('%d.%m.%Y')
         existing_data.set_index('Datum', inplace=True)
         html_table_daily = existing_data.to_html(classes='table table-striped')
+
         is_date = pd.to_datetime(existing_data.index, errors='coerce').notna()
         existing_data.loc[is_date, 'Monat'] = pd.to_datetime(existing_data[is_date].index).strftime('%B')
         monthly_data = existing_data[is_date].groupby('Monat').sum()
@@ -139,6 +141,7 @@ def generate_excel():
 
     if os.path.exists(csv_file_path):
         df = pd.read_csv(csv_file_path)
+        df['Datum'] = pd.to_datetime(df['Datum'], errors='coerce').dt.strftime('%d.%m.%Y')
         with pd.ExcelWriter(excel_file_path, engine='openpyxl') as writer:
             df.to_excel(writer, index=False)
 
@@ -185,6 +188,8 @@ def clear_statistics():
         for f in glob.glob('Statistiken/*'):
             os.remove(f)
         return redirect(url_for('upload_file_form'))
+
+    footer = render_footer()
 
     return render_template_string('''
     <html>
