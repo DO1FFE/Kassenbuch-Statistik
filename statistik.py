@@ -113,15 +113,25 @@ def upload_file_form():
             </div>
           </div>
           <br>
-          <a href="/download/{{ filename }}">Jährliche Statistik herunterladen</a>
-          <br><br>
+          <a href="/generate_excel">Excel-Datei generieren</a>
+          <br>
+          <a href="/list_excel_files">Verfügbare Excel-Dateien anzeigen</a>
+          <br>
           <a href="/clear_statistics">Statistikdaten löschen</a>
           <br><br>
           <a href="/">Zurück zur Hauptseite</a>
           ''' + footer + '''
        </body>
     </html>
-    ''', filename=filename)
+    ''')
+
+@app.route('/generate_excel', methods=['GET', 'POST'])
+def generate_excel():
+    # ... (Code zum Generieren der Excel-Datei)
+
+@app.route('/list_excel_files')
+def list_excel_files():
+    # ... (Code zum Auflisten der Excel-Dateien)
 
 @app.route('/download/<filename>')
 def download_file(filename):
@@ -129,28 +139,7 @@ def download_file(filename):
 
 @app.route('/clear_statistics', methods=['GET', 'POST'])
 def clear_statistics():
-    if 'authenticated' not in session:
-        return redirect(url_for('password_form'))
-
-    if request.method == 'POST':
-        for f in glob.glob('Statistiken/*'):
-            os.remove(f)
-        return redirect(url_for('upload_file_form'))
-
-    return render_template_string('''
-    <html>
-       <body>
-          ''' + render_header() + '''
-          <p>Sind Sie sicher, dass Sie alle Statistikdateien löschen möchten?</p>
-          <form action="/clear_statistics" method="post">
-             <input type="submit" value="Statistiken löschen"/>
-          </form>
-          <br>
-          <a href="/">Zurück zur Hauptseite</a>
-          ''' + render_footer() + '''
-       </body>
-    </html>
-    ''')
+    # ... (Code zum Löschen der Statistikdaten)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8098, debug=True)
