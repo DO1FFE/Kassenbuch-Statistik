@@ -67,7 +67,7 @@ def upload_file():
             <head>
                 <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
                 <style>
-                    .table { width: auto !important; margin: auto; }
+                    .table {{ width: auto !important; margin: auto; }}
                 </style>
             </head>
             <body>
