@@ -30,6 +30,7 @@ def render_password_form():
              Passwort: <input type="password" name="password" />
              <input type="submit" />
           </form>
+          <p>&copy; Copyright by Erik Schauer, 2023, do1ffe@darc.de</p>
        </body>
     </html>
     '''
@@ -38,6 +39,11 @@ def render_password_form():
 def upload_file_form():
     if 'authenticated' not in session:
         return redirect(url_for('password_form'))
+
+    html_table = ""
+    current_date = datetime.now().strftime('%y%m%d')
+    filename = f"{current_date}-Kassenbuch-Statistik.xlsx"
+    csv_file_path = 'Statistiken/statistik.csv'
 
     if request.method == 'POST':
         f = request.files['file']
@@ -60,7 +66,6 @@ def upload_file_form():
         grouped_data = grouped_data[ticket_types]
         grouped_data.loc['Gesamt'] = grouped_data.sum()
 
-        csv_file_path = 'Statistiken/statistik.csv'
         if os.path.exists(csv_file_path):
             existing_data = pd.read_csv(csv_file_path)
         else:
@@ -70,18 +75,17 @@ def upload_file_form():
         combined_data = combined_data.drop_duplicates(subset=['Datum'], keep='last')
         combined_data.to_csv(csv_file_path, index=False, date_format='%d.%m.%Y')
 
-        current_date = datetime.now().strftime('%y%m%d')
-        filename = f"{current_date}-Kassenbuch-Statistik.xlsx"
         os.makedirs('Statistiken', exist_ok=True)
         local_path = os.path.join('Statistiken', filename)
 
         with pd.ExcelWriter(local_path, engine='openpyxl') as writer:
             combined_data.to_excel(writer, index=False)
 
+        html_table = combined_data.to_html(classes='table table-striped', index=False)
+
     # Pfad zur neuesten Statistik-Datei finden
     list_of_files = glob.glob('Statistiken/*.xlsx') 
-    latest_file = max(list_of_files, key=os.path.getctime) if list_of_files else None
-    latest_file_name = os.path.basename(latest_file) if latest_file else "Keine Statistik verfügbar"
+    latest_file_name = os.path.basename(max(list_of_files, key=os.path.getctime)) if list_of_files else None
 
     return render_template_string('''
     <html>
@@ -92,10 +96,18 @@ def upload_file_form():
              <input type="submit" />
           </form>
           <br>
-          <a href="/download/{{ latest_file_name }}">{{ latest_file_name }}</a>
+          <h2>Statistik-Tabelle</h2>
+          ''' + html_table + '''
+          <br>
+          <a href="/download/{{ filename }}">Aktuelle Excel-Datei herunterladen</a>
+          <br><br>
+          <a href="/download/{{ latest_file_name }}">Letzte Statistik herunterladen</a>
+          <br><br>
+          <a href="/">Zurück zur Hauptseite</a>
+          <p>&copy; Copyright by Erik Schauer, 2023, do1ffe@darc.de</p>
        </body>
     </html>
-    ''', latest_file_name=latest_file_name)
+    ''', filename=filename, latest_file_name=latest_file_name if latest_file_name else "Keine Statistik verfügbar")
 
 @app.route('/download/<filename>')
 def download_file(filename):
