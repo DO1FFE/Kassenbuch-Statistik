@@ -196,7 +196,7 @@ def clear_statistics():
           </form>
           <br>
           <a href="/">Zurück zur Hauptseite</a>
-          ''' + footer + '''
+          ''' + render_footer() + '''
        </body>
     </html>
     ''')
