@@ -34,7 +34,6 @@ def upload_file():
         if not f:
             return 'Keine Datei hochgeladen', 400
 
-        # Einlesen der Excel-Datei in einen DataFrame
         df = pd.read_excel(f)
 
         # Extrahieren der ersten zwei Buchstaben der Tickettypen und Gruppierung
@@ -43,13 +42,24 @@ def upload_file():
         df = df[df['Tickettyp'].isin(ticket_types)]
         grouped_data = df.groupby([df['Datum'], 'Tickettyp']).size().unstack(fill_value=0)
 
+        # Stellen Sie sicher, dass alle Tickettypen vorhanden sind
+        for ticket_type in ticket_types:
+            if ticket_type not in grouped_data:
+                grouped_data[ticket_type] = 0
+
+        # Anordnen der Spalten in der gewünschten Reihenfolge
+        desired_order = ['TT', 'MT', 'JT', 'V', 'R']
+        grouped_data = grouped_data[desired_order]
+
+        # Hinzufügen der Gesamtsummenzeile
+        grouped_data.loc['Gesamt'] = grouped_data.sum()
+
         # Pfad zur CSV-Datei
         csv_file_path = 'Statistiken/statistik.csv'
 
         # Laden bestehender Daten aus der CSV-Datei, falls vorhanden
         if os.path.exists(csv_file_path):
             existing_data = pd.read_csv(csv_file_path)
-            existing_data['Datum'] = pd.to_datetime(existing_data['Datum'])
         else:
             existing_data = pd.DataFrame()
 
@@ -73,7 +83,7 @@ def upload_file():
                 max_length = max(len(str(cell.value)) for cell in col)
                 worksheet.column_dimensions[get_column_letter(col[0].column)].width = max_length + 2
 
-        # Erstellen der HTML-Tabelle mit allen Daten
+        # Erstellen der HTML-Tabelle mit allen Daten und Gesamtsummenzeile
         html_table = combined_data.to_html(classes='table table-striped', index=False)
 
         return render_template_string(f'''
