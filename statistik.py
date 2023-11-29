@@ -50,7 +50,9 @@ def upload_file():
                 grouped_data[ticket_type] = 0
 
         grouped_data = grouped_data[['TT', 'MT', 'JT', 'V', 'R']]
-        grouped_data = grouped_data.rename(index={'Total': 'Gesamt'})
+
+        # Korrektur: Hinzufügen der Gesamtsumme
+        grouped_data.loc['Gesamt'] = grouped_data.sum()
 
         current_date = datetime.now().strftime('%y%m%d')
         filename = f"{current_date}-Kassenbuch-Statistik.xlsx"
