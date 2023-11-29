@@ -127,11 +127,47 @@ def upload_file_form():
 
 @app.route('/generate_excel', methods=['GET', 'POST'])
 def generate_excel():
-    # ... (Code zum Generieren der Excel-Datei)
+    if 'authenticated' not in session:
+        return redirect(url_for('password_form'))
+
+    current_year = datetime.now().year
+    csv_file_path = f'Statistiken/{current_year}-statistik.csv'
+    excel_file_path = f'Statistiken/{current_year}-statistik.xlsx'
+
+    if os.path.exists(csv_file_path):
+        df = pd.read_csv(csv_file_path)
+        with pd.ExcelWriter(excel_file_path, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False)
+
+    return redirect(url_for('upload_file_form'))
 
 @app.route('/list_excel_files')
 def list_excel_files():
-    # ... (Code zum Auflisten der Excel-Dateien)
+    if 'authenticated' not in session:
+        return redirect(url_for('password_form'))
+
+    files = glob.glob('Statistiken/*.xlsx')
+    file_list = [os.path.basename(file) for file in files]
+
+    header = render_header()
+    footer = render_footer()
+
+    return render_template_string('''
+    <html>
+       <body>
+          ''' + header + '''
+          <h2>Verfügbare Excel-Dateien:</h2>
+          <ul>
+            {% for file in file_list %}
+              <li><a href="/download/{{ file }}">{{ file }}</a></li>
+            {% endfor %}
+          </ul>
+          <br>
+          <a href="/upload">Zurück zur Upload-Seite</a>
+          ''' + footer + '''
+       </body>
+    </html>
+    ''', file_list=file_list)
 
 @app.route('/download/<filename>')
 def download_file(filename):
@@ -139,7 +175,28 @@ def download_file(filename):
 
 @app.route('/clear_statistics', methods=['GET', 'POST'])
 def clear_statistics():
-    # ... (Code zum Löschen der Statistikdaten)
+    if 'authenticated' not in session:
+        return redirect(url_for('password_form'))
+
+    if request.method == 'POST':
+        for f in glob.glob('Statistiken/*'):
+            os.remove(f)
+        return redirect(url_for('upload_file_form'))
+
+    return render_template_string('''
+    <html>
+       <body>
+          ''' + render_header() + '''
+          <p>Sind Sie sicher, dass Sie alle Statistikdateien löschen möchten?</p>
+          <form action="/clear_statistics" method="post">
+             <input type="submit" value="Statistiken löschen"/>
+          </form>
+          <br>
+          <a href="/">Zurück zur Hauptseite</a>
+          ''' + render_footer() + '''
+       </body>
+    </html>
+    ''')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8098, debug=True)
