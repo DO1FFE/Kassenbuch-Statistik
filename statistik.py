@@ -3,7 +3,6 @@ import pandas as pd
 import os
 from datetime import datetime
 import glob
-import calendar
 
 app = Flask(__name__)
 app.secret_key = 'IhrSehrGeheimerSchlüssel'
@@ -49,11 +48,9 @@ def upload_file_form():
 
     html_table_daily = ""
     html_table_monthly = ""
-    current_date = datetime.now().strftime('%y%m%d')
     current_year = datetime.now().year
-    filename = f"{current_date}-Kassenbuch-Statistik.xlsx"
-    yearly_filename = f"{current_year}-Statistik.xlsx"
-    csv_file_path = 'Statistiken/statistik.csv'
+    filename = f"{current_year}-Kassenbuch-Statistik.xlsx"
+    csv_file_path = f'Statistiken/{current_year}-statistik.csv'
 
     if request.method == 'POST':
         f = request.files['file']
@@ -77,28 +74,19 @@ def upload_file_form():
         grouped_data.loc['Gesamt'] = grouped_data.sum()
 
         if os.path.exists(csv_file_path):
-            existing_data = pd.read_csv(csv_file_path)
-            existing_data['Datum'] = pd.to_datetime(existing_data['Datum'], format='%d.%m.%Y')
+            existing_data = pd.read_csv(csv_file_path, index_col='Datum')
         else:
             existing_data = pd.DataFrame()
 
-        combined_data = pd.concat([existing_data, grouped_data.reset_index()])
-        combined_data = combined_data.drop_duplicates(subset=['Datum'], keep='last')
-        combined_data.to_csv(csv_file_path, index=False, date_format='%d.%m.%Y')
+        combined_data = pd.concat([existing_data, grouped_data])
+        combined_data = combined_data[~combined_data.index.duplicated(keep='last')]
+        combined_data.to_csv(csv_file_path)
 
-        os.makedirs('Statistiken', exist_ok=True)
-        local_path = os.path.join('Statistiken', filename)
-
-        with pd.ExcelWriter(local_path, engine='openpyxl') as writer:
-            combined_data.to_excel(writer, index=False)
-
-        html_table_daily = combined_data.to_html(classes='table table-striped', index=False)
+        html_table_daily = combined_data.to_html(classes='table table-striped')
 
         # Monatliche Statistik erstellen
-        df['Monat'] = pd.to_datetime(df['Datum'], format='%d.%m.%Y').dt.to_period('M')
-        monthly_data = df.groupby(['Monat', 'Tickettyp']).size().unstack(fill_value=0)
-        monthly_data.index = monthly_data.index.strftime('%B')  # Monatsnamen anzeigen
-        monthly_data.loc['Gesamt'] = monthly_data.sum()
+        combined_data['Monat'] = pd.to_datetime(combined_data.index).strftime('%B')
+        monthly_data = combined_data.groupby('Monat').sum()
         html_table_monthly = monthly_data.to_html(classes='table table-striped')
 
     header = render_header()
@@ -108,6 +96,10 @@ def upload_file_form():
     <html>
        <body>
           ''' + header + '''
+          <form action="/upload" method="post" enctype="multipart/form-data">
+             <input type="file" name="file" />
+             <input type="submit" value="Kassenbuch hochladen"/>
+          </form>
           <div style="display:flex;">
             <div style="margin-right: 50px;">
               <h2>Tägliche Statistik</h2>
@@ -119,19 +111,44 @@ def upload_file_form():
             </div>
           </div>
           <br>
-          <a href="/download/{{ filename }}">Aktuelle Excel-Datei herunterladen</a>
+          <a href="/download/{{ filename }}">Jährliche Statistik herunterladen</a>
           <br><br>
-          <a href="/download/{{ yearly_filename }}">Monatliche Statistik herunterladen</a>
+          <a href="/clear_statistics">Statistikdaten löschen</a>
           <br><br>
           <a href="/">Zurück zur Hauptseite</a>
           ''' + footer + '''
        </body>
     </html>
-    ''', filename=filename, yearly_filename=yearly_filename)
+    ''', filename=filename)
 
 @app.route('/download/<filename>')
 def download_file(filename):
     return send_file(os.path.join('Statistiken', filename), as_attachment=True)
+
+@app.route('/clear_statistics', methods=['GET', 'POST'])
+def clear_statistics():
+    if 'authenticated' not in session:
+        return redirect(url_for('password_form'))
+
+    if request.method == 'POST':
+        for f in glob.glob('Statistiken/*'):
+            os.remove(f)
+        return redirect(url_for('upload_file_form'))
+
+    return render_template_string('''
+    <html>
+       <body>
+          ''' + render_header() + '''
+          <p>Sind Sie sicher, dass Sie alle Statistikdateien löschen möchten?</p>
+          <form action="/clear_statistics" method="post">
+             <input type="submit" value="Statistiken löschen"/>
+          </form>
+          <br>
+          <a href="/">Zurück zur Hauptseite</a>
+          ''' + render_footer() + '''
+       </body>
+    </html>
+    ''')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8098, debug=True)
