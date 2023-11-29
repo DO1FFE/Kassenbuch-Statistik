@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, render_template_string
 import pandas as pd
 import io
 import os
@@ -9,10 +9,7 @@ app = Flask(__name__)
 @app.route('/')
 def upload_file_form():
     current_year = datetime.now().year
-    if current_year == 2023:
-        copyright_year = "2023"
-    else:
-        copyright_year = f"2023-{current_year}"
+    copyright_year = "2023" if current_year == 2023 else f"2023-{current_year}"
 
     return f'''
     <html>
@@ -36,45 +33,44 @@ def upload_file():
             return 'Keine Datei hochgeladen', 400
 
         df = pd.read_excel(f)
-
-        # Konvertieren der 'Datum'-Spalte zu datetime und Fehlerbehandlung
         df['Datum'] = pd.to_datetime(df['Datum'], errors='coerce')
         df = df.dropna(subset=['Datum'])
-
-        # Extrahieren der ersten zwei Buchstaben der Tickettypen
         df['Tickettyp'] = df['Quittung Text'].str[:2]
         ticket_types = ['TT', 'MT', 'JT', 'V', 'R']
         df = df[df['Tickettyp'].isin(ticket_types)]
 
-        # Gruppierung der Daten
         grouped_data = df.groupby([df['Datum'].dt.strftime('%d.%m.%Y'), 'Tickettyp']).size().unstack(fill_value=0)
-
-        # Hinzufügen fehlender Tickettypen, falls sie nicht vorhanden sind
         for ticket_type in ['TT', 'MT', 'JT', 'V', 'R']:
             if ticket_type not in grouped_data:
                 grouped_data[ticket_type] = 0
-
-        # Anordnung der Spalten in der gewünschten Reihenfolge
-        desired_order = ['TT', 'MT', 'JT', 'V', 'R']
-        grouped_data = grouped_data[desired_order]
-
-        # Gesamtsumme am Ende hinzufügen
+        grouped_data = grouped_data[['TT', 'MT', 'JT', 'V', 'R']]
         grouped_data.loc['Total'] = grouped_data.sum()
 
+        # Speichern der Excel-Datei
         current_date = datetime.now().strftime('%y%m%d')
         filename = f"{current_date}-Kassenbuch-Statistik.xlsx"
-
         os.makedirs('Statistiken', exist_ok=True)
         local_path = os.path.join('Statistiken', filename)
         with pd.ExcelWriter(local_path, engine='openpyxl') as writer:
             grouped_data.to_excel(writer)
 
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            grouped_data.to_excel(writer)
-        output.seek(0)
+        # Erstellen der HTML-Tabelle
+        html_table = grouped_data.to_html(classes='table table-striped')
 
-        return send_file(output, attachment_filename=filename, as_attachment=True)
+        return render_template_string(f'''
+        <html>
+            <body>
+                <h2>Statistik-Tabelle</h2>
+                {html_table}
+                <br>
+                <a href="/download/{filename}">Excel-Datei herunterladen</a>
+            </body>
+        </html>
+        ''')
+
+@app.route('/download/<filename>')
+def download_file(filename):
+    return send_file(os.path.join('Statistiken', filename), as_attachment=True)
 
 if __name__ == '__main__':
    app.run(host='0.0.0.0', port=8098, debug=True)
