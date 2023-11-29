@@ -42,7 +42,9 @@ def upload_file_form():
 
     html_table = ""
     current_date = datetime.now().strftime('%y%m%d')
+    current_year = datetime.now().year
     filename = f"{current_date}-Kassenbuch-Statistik.xlsx"
+    yearly_filename = f"{current_year}-Statistik.xlsx"
     csv_file_path = 'Statistiken/statistik.csv'
 
     if request.method == 'POST':
@@ -83,6 +85,15 @@ def upload_file_form():
 
         html_table = combined_data.to_html(classes='table table-striped', index=False)
 
+        # Monatliche Statistik erstellen und speichern
+        df['Monat'] = pd.to_datetime(df['Datum'], format='%d.%m.%Y').dt.to_period('M')
+        monthly_data = df.groupby(['Monat', 'Tickettyp']).size().unstack(fill_value=0)
+        monthly_data.loc['Gesamt'] = monthly_data.sum()
+
+        yearly_path = os.path.join('Statistiken', yearly_filename)
+        with pd.ExcelWriter(yearly_path, engine='openpyxl') as writer:
+            monthly_data.to_excel(writer, index=True)
+
     # Pfad zur neuesten Statistik-Datei finden
     list_of_files = glob.glob('Statistiken/*.xlsx') 
     latest_file_name = os.path.basename(max(list_of_files, key=os.path.getctime)) if list_of_files else None
@@ -101,13 +112,13 @@ def upload_file_form():
           <br>
           <a href="/download/{{ filename }}">Aktuelle Excel-Datei herunterladen</a>
           <br><br>
-          <a href="/download/{{ latest_file_name }}">Letzte Statistik herunterladen</a>
+          <a href="/download/{{ yearly_filename }}">Monatliche Statistik herunterladen</a>
           <br><br>
           <a href="/">Zurück zur Hauptseite</a>
           <p>&copy; Copyright by Erik Schauer, 2023, do1ffe@darc.de</p>
        </body>
     </html>
-    ''', filename=filename, latest_file_name=latest_file_name if latest_file_name else "Keine Statistik verfügbar")
+    ''', filename=filename, yearly_filename=yearly_filename, latest_file_name=latest_file_name if latest_file_name else "Keine Statistik verfügbar")
 
 @app.route('/download/<filename>')
 def download_file(filename):
