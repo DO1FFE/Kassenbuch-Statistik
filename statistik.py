@@ -37,6 +37,12 @@ def upload_file():
 
         df = pd.read_excel(f)
 
+        # Konvertieren der 'Datum'-Spalte zu datetime und Fehlerbehandlung
+        df['Datum'] = pd.to_datetime(df['Datum'], errors='coerce')
+
+        # Weiterhin sicherstellen, dass nur gültige Datumsdaten berücksichtigt werden
+        df = df.dropna(subset=['Datum'])
+
         # Extrahieren der ersten zwei Buchstaben der Tickettypen
         df['Tickettyp'] = df['Quittung Text'].str[:2]
         ticket_types = ['TT', 'MT', 'JT', 'V', 'R']
