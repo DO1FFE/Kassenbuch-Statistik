@@ -3,6 +3,7 @@ import pandas as pd
 import io
 import os
 from datetime import datetime
+from openpyxl.utils import get_column_letter
 
 app = Flask(__name__)
 
@@ -11,7 +12,7 @@ def upload_file_form():
     current_year = datetime.now().year
     copyright_year = "2023" if current_year == 2023 else f"2023-{current_year}"
 
-    return f'''
+    return '''
     <html>
        <body>
           <h1>Konvertierung Kassenbuch in Statistik</h1>
@@ -20,7 +21,7 @@ def upload_file_form():
              <input type="file" name="file" />
              <input type="submit" />
           </form>
-          <p>&copy; Copyright by Erik Schauer, {copyright_year}, do1ffe@darc.de</p>
+          <p>&copy; Copyright by Erik Schauer, ''' + copyright_year + ''', do1ffe@darc.de</p>
        </body>
     </html>
     '''
@@ -44,26 +45,38 @@ def upload_file():
             if ticket_type not in grouped_data:
                 grouped_data[ticket_type] = 0
         grouped_data = grouped_data[['TT', 'MT', 'JT', 'V', 'R']]
-        grouped_data.loc['Total'] = grouped_data.sum()
+        grouped_data = grouped_data.rename(index={'Total': 'Gesamt'})
 
-        # Speichern der Excel-Datei
         current_date = datetime.now().strftime('%y%m%d')
         filename = f"{current_date}-Kassenbuch-Statistik.xlsx"
         os.makedirs('Statistiken', exist_ok=True)
         local_path = os.path.join('Statistiken', filename)
+
         with pd.ExcelWriter(local_path, engine='openpyxl') as writer:
             grouped_data.to_excel(writer)
+            workbook = writer.book
+            worksheet = writer.sheets['Sheet1']
+            for column_cells in worksheet.columns:
+                length = max(len(str(cell.value)) for cell in column_cells)
+                worksheet.column_dimensions[get_column_letter(column_cells[0].column)].width = length
 
-        # Erstellen der HTML-Tabelle
         html_table = grouped_data.to_html(classes='table table-striped')
 
         return render_template_string(f'''
         <html>
+            <head>
+                <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+                <style>
+                    .table { width: auto !important; margin: auto; }
+                </style>
+            </head>
             <body>
                 <h2>Statistik-Tabelle</h2>
                 {html_table}
                 <br>
                 <a href="/download/{filename}">Excel-Datei herunterladen</a>
+                <br><br>
+                <a href="/">Zurück zur Hauptseite</a>
             </body>
         </html>
         ''')
