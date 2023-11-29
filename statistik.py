@@ -32,7 +32,8 @@ def upload_file():
         if not f:
             return 'Keine Datei hochgeladen', 400
 
-        df = pd.read_excel(f)
+        # Einlesen der Excel-Datei ab Zeile 4
+        df = pd.read_excel(f, skiprows=3)
 
         # Datumskonvertierung
         df['Datum'] = pd.to_datetime(df['Datum']).dt.strftime('%d.%m.%Y')
